@@ -36,4 +36,6 @@ jobs:
       - run: npm ci
       - run: npm test
       - name: Publish
-        run: npm publish --access public
+        # Verbose so a refused Trusted Publishing exchange says why in the log
+        # (otherwise npm falls back to the placeholder token and prints a 404).
+        run: npm publish --access public --loglevel verbose
