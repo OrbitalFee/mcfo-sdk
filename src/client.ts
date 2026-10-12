@@ -36,6 +36,28 @@ export function gweiToWei(gwei: number): bigint {
   return BigInt(Math.round(gwei * 1e9));
 }
 
+/**
+ * EIP-1559 fee parameters for one profile, from a quote you already have.
+ *
+ * getFeeParams({ profile }) fetches /v1/quick and calls this. Call it
+ * yourself to derive all three profiles from one request instead of three.
+ */
+export function feeParamsFromQuote(
+  quote: Quote,
+  options: { profile?: FeeProfile; baseFeeMultiplier?: number } = {},
+): FeeParams {
+  const profile = options.profile ?? "balanced";
+  const baseFeeMultiplier = options.baseFeeMultiplier ?? DEFAULT_BASE_FEE_MULTIPLIER;
+  const baseFeeGwei = quote.base_fee_gwei;
+  // The API returns base + tip; the tip is what EIP-1559 calls the priority fee.
+  const tipGwei = Math.max(quote[PROFILE_TIER[profile]].fee - baseFeeGwei, 0);
+  return {
+    maxFeePerGas: gweiToWei(baseFeeGwei * baseFeeMultiplier + tipGwei),
+    maxPriorityFeePerGas: gweiToWei(tipGwei),
+    source: { endpoint: "/v1/quick", profile, baseFeeGwei, tipGwei, baseFeeMultiplier },
+  };
+}
+
 export class McfoClient {
   private readonly baseUrl: string;
   private readonly apiKey?: string;
@@ -73,7 +95,17 @@ export class McfoClient {
       clearTimeout(timer);
     }
 
-    if (res.ok) return (await res.json()) as T;
+    if (res.ok) {
+      // A proxy or login page can answer 200 with HTML. That is not a quote,
+      // so it must surface as a typed error, never as a raw SyntaxError.
+      try {
+        return (await res.json()) as T;
+      } catch {
+        throw new McfoError("http_error", `${path} returned a body that is not JSON`, {
+          status: res.status,
+        });
+      }
+    }
 
     const body: Record<string, unknown> = await res.json().catch(() => ({}));
     const retryAfterHeader = Number(res.headers?.get?.("retry-after") ?? NaN);
@@ -163,44 +195,26 @@ export class McfoClient {
       baseFeeMultiplier = DEFAULT_BASE_FEE_MULTIPLIER,
     } = params;
 
-    let baseFeeGwei: number;
-    let totalGwei: number;
-    let source: FeeParams["source"];
+    if (confidence === undefined && blocks === undefined) {
+      const quote = await this.getQuote(chain);
+      return feeParamsFromQuote(quote, { profile: params.profile, baseFeeMultiplier });
+    }
 
-    if (confidence !== undefined || blocks !== undefined) {
-      const advanced = await this.getAdvanced({ chain, confidence, blocks });
-      baseFeeGwei = advanced.base_fee_gwei;
-      totalGwei = advanced.fee;
-      source = {
+    const advanced = await this.getAdvanced({ chain, confidence, blocks });
+    const baseFeeGwei = advanced.base_fee_gwei;
+    // The API returns base + tip; the tip is what EIP-1559 calls the priority fee.
+    const tipGwei = Math.max(advanced.fee - baseFeeGwei, 0);
+    return {
+      maxFeePerGas: gweiToWei(baseFeeGwei * baseFeeMultiplier + tipGwei),
+      maxPriorityFeePerGas: gweiToWei(tipGwei),
+      source: {
         endpoint: "/v1/advanced",
         confidence: advanced.confidenceRequested,
         blocks: advanced.blocks,
         baseFeeGwei,
-        tipGwei: 0,
+        tipGwei,
         baseFeeMultiplier,
-      };
-    } else {
-      const profile = params.profile ?? "balanced";
-      const quote = await this.getQuote(chain);
-      baseFeeGwei = quote.base_fee_gwei;
-      totalGwei = quote[PROFILE_TIER[profile]].fee;
-      source = {
-        endpoint: "/v1/quick",
-        profile,
-        baseFeeGwei,
-        tipGwei: 0,
-        baseFeeMultiplier,
-      };
-    }
-
-    // The API returns base + tip; the tip is what EIP-1559 calls the priority fee.
-    const tipGwei = Math.max(totalGwei - baseFeeGwei, 0);
-    source.tipGwei = tipGwei;
-
-    return {
-      maxFeePerGas: gweiToWei(baseFeeGwei * baseFeeMultiplier + tipGwei),
-      maxPriorityFeePerGas: gweiToWei(tipGwei),
-      source,
+      },
     };
   }
 }

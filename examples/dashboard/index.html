@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ethereum fees, live</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --ink: #1a1210; --muted: #6f6663; --line: #e6e2df;
+    --accent: #c24708; --accent-soft: #fff1ea; --good: #0f7a4e; --warn: #9a5b00; --bad: #b3261e;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141110; --card: #1d1917; --ink: #f2ece8; --muted: #a39892; --line: #332c29;
+      --accent: #ff7a3d; --accent-soft: #2a1c15; --good: #4fc58e; --warn: #e3a23c; --bad: #ff6b5e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+  main { max-width: 1040px; margin: 0 auto; padding: 28px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good); margin-right: 6px; }
+  .dot.stale { background: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0 16px; align-items: center; }
+  .chips span { color: var(--muted); font-size: 13px; margin-right: 4px; }
+  button.chip { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px;
+    padding: 6px 14px; font: 500 13px var(--sans); cursor: pointer; }
+  button.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+  .card.featured { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .big { font: 500 30px/1.15 var(--sans); letter-spacing: -0.03em; margin: 6px 0 2px; }
+  .big small { font-size: 14px; color: var(--muted); letter-spacing: 0; }
+  .line { font-size: 13px; color: var(--muted); }
+  .saving { color: var(--good); font-weight: 600; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 12px 0 0; font-size: 12px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+  .copy { margin-top: 10px; border: 0; background: none; color: var(--accent); font: 600 12px var(--sans); cursor: pointer; padding: 0; }
+  .row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
+  .advice-head { font-size: 20px; font-weight: 600; margin: 6px 0 4px; }
+  pre { margin: 10px 0 0; padding: 12px; background: var(--bg); border-radius: 8px; overflow-x: auto;
+    font: 12px/1.6 var(--mono); }
+  .banner { display: none; margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; font-size: 13px;
+    background: var(--accent-soft); border: 1px solid var(--accent); }
+  .banner.show { display: block; }
+  footer { margin-top: 24px; color: var(--muted); font-size: 12px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Ethereum fees, live</h1>
+      <div class="sub">From the Orbital Fee API through <code>@orbitalfee/mcfo-sdk</code>, running on this page's server.</div>
+    </div>
+    <div class="sub" id="fresh"><span class="dot stale"></span>Loading…</div>
+  </header>
+
+  <div class="chips" role="group" aria-label="Transaction gas limit">
+    <span>Gas limit</span>
+    <button class="chip" data-gas="21000" aria-pressed="true">Transfer 21k</button>
+    <button class="chip" data-gas="65000" aria-pressed="false">Token transfer 65k</button>
+    <button class="chip" data-gas="150000" aria-pressed="false">Swap 150k</button>
+  </div>
+
+  <div class="banner" id="banner" role="status"></div>
+
+  <section class="grid" id="profiles" aria-label="Fee profiles"></section>
+
+  <section class="row2">
+    <div class="card" id="confidence"></div>
+    <div class="card" id="advice"></div>
+  </section>
+
+  <section class="card" style="margin-top:12px">
+    <div class="label">The code behind this page</div>
+    <pre>import { McfoClient, feeParamsFromQuote } from "@orbitalfee/mcfo-sdk";
+
+const mcfo = new McfoClient({ apiKey: process.env.MCFO_API_KEY });        // server side only
+
+const quote = await mcfo.getQuote();                                      // 1 request
+const saver = feeParamsFromQuote(quote, { profile: "saver" });            // no request
+const sure  = await mcfo.getFeeParams({ confidence: 0.9, blocks: 3 });    // 1 request
+const tip   = await mcfo.getAdvice({ gasLimit: <span id="gl">21000</span> });                  // 1 request
+
+await wallet.sendTransaction({ to, value, ...saver });                    // your wallet signs</pre>
+  </section>
+
+  <footer>
+    Fees in gwei (1 gwei = 10<sup>9</sup> wei). Cost assumes the whole gas limit is used.
+    Refreshes every 15 s. Source: <code>examples/dashboard</code> in
+    <a href="https://github.com/OrbitalFee/mcfo-sdk">OrbitalFee/mcfo-sdk</a>.
+  </footer>
+</main>
+
+<script type="module">
+  const NAMES = { saver: "Saver", balanced: "Balanced", priority: "Priority" };
+  let gasLimit = 21000;
+  let last = null;
+
+  const $ = (id) => document.getElementById(id);
+  const gwei = (v) => (v >= 1 ? v.toFixed(2) : v.toFixed(4));
+  const eth = (feeGwei) => {
+    const v = (feeGwei * gasLimit) / 1e9;
+    return `${Number(v.toPrecision(3))} ETH`;
+  };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  function weiBlock(f) {
+    return `<dl><dt>maxFeePerGas</dt><dd>${f.maxFeePerGas}</dd>
+      <dt>maxPriorityFeePerGas</dt><dd>${f.maxPriorityFeePerGas}</dd></dl>
+      <button class="copy" data-copy='${JSON.stringify({ maxFeePerGas: f.maxFeePerGas, maxPriorityFeePerGas: f.maxPriorityFeePerGas })}'>Copy fee fields</button>`;
+  }
+
+  function render(d) {
+    const m = d.market;
+    const errors = [d.marketError, d.adviceError].filter(Boolean);
+    const banner = $("banner");
+    if (errors.length) {
+      const e = errors[0];
+      const wait = e.retryAfterSeconds ? ` Retrying in about ${e.retryAfterSeconds} s.` : "";
+      banner.textContent = (m ? "Showing the last good reading. " : "") + `Fee data unavailable (${e.code}).` + wait;
+      banner.classList.add("show");
+    } else {
+      banner.classList.remove("show");
+    }
+    if (!m) return;
+
+    const age = Math.round((d.marketAgeMs ?? 0) / 1000) + m.snapshotAge;
+    const stale = Boolean(d.marketError) || age > 60;
+    $("fresh").innerHTML = `<span class="dot${stale ? " stale" : ""}"></span>Base fee ${gwei(m.baseFeeGwei)} gwei · reading ${age} s old`;
+
+    $("profiles").innerHTML = Object.entries(m.profiles).map(([name, p]) => `
+      <article class="card${name === "balanced" ? " featured" : ""}">
+        <div class="label">${NAMES[name]}</div>
+        <div class="big">${gwei(p.feeGwei)} <small>gwei</small></div>
+        <div class="line">${eth(p.feeGwei)} · tip ${gwei(p.tipGwei)} gwei</div>
+        ${p.savingPct != null && p.savingPct > 0 ? `<div class="line"><span class="saving">${p.savingPct}% below</span> ${esc(m.savingBasis ?? "the reference fee")}</div>` : `<div class="line">The reference fee${m.savingBasis ? ": " + esc(m.savingBasis) : ""}</div>`}
+        ${weiBlock(p)}
+      </article>`).join("");
+
+    const c = m.confidence;
+    $("confidence").innerHTML = `
+      <div class="label">${Math.round(c.confidence * 100)}% chance within ${c.blocks} blocks</div>
+      <div class="big">${gwei(c.feeGwei)} <small>gwei</small></div>
+      <div class="line">${eth(c.feeGwei)} · from <code>getFeeParams({ confidence: ${c.confidence}, blocks: ${c.blocks} })</code></div>
+      ${weiBlock(c)}`;
+
+    const a = d.advice;
+    $("advice").innerHTML = a ? `
+      <div class="label">Advice for ${gasLimit.toLocaleString()} gas</div>
+      <div class="advice-head">${a.waitMinutes > 0 ? `Wait about ${a.waitMinutes} min` : "Send now"}</div>
+      <div class="line">${a.advisedFee != null ? `Pay ${gwei(a.advisedFee)} gwei (${eth(a.advisedFee)}).` : ""}
+        ${a.savePercent > 0 ? `<span class="saving">${a.savePercent}% below</span> paying to be safe.` : "No saving available right now."}</div>
+      <div class="line">Confidence ${Math.round(a.confidence * 100)}%. Budget at most ${gwei(a.estFutureMaxFee)} gwei.</div>`
+      : `<div class="label">Advice</div><div class="line">Not available yet.</div>`;
+  }
+
+  async function refresh() {
+    try {
+      const res = await fetch(`/api/fees?gasLimit=${gasLimit}`);
+      last = await res.json();
+      render(last);
+    } catch {
+      $("banner").textContent = "This page cannot reach its server.";
+      $("banner").classList.add("show");
+    }
+  }
+
+  document.querySelectorAll("button.chip").forEach((b) =>
+    b.addEventListener("click", () => {
+      gasLimit = Number(b.dataset.gas);
+      $("gl").textContent = gasLimit;
+      document.querySelectorAll("button.chip").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      if (last) render(last); // costs update at once; advice follows on the fetch
+      refresh();
+    }));
+
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("button.copy");
+    if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied"; }
+    catch { b.textContent = "Copy failed"; }
+    setTimeout(() => (b.textContent = "Copy fee fields"), 1500);
+  });
+
+  refresh();
+  setInterval(refresh, 15000);
+</script>
+</body>
+</html>
