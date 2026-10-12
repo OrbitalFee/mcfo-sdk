@@ -1,11 +1,14 @@
 name: Release
 
-# Publishes to npm when a version tag (v1.2.3) is pushed. The tag must equal
-# package.json "version", or the job fails before anything is published.
+# Stages a release on npm when a version tag (v1.2.3) is pushed. The tag must
+# equal package.json "version", or the job fails before anything is staged.
+#
 # No npm token: npm Trusted Publishing authenticates this workflow through
-# GitHub's OIDC token (id-token: write) and adds provenance by itself.
-# It needs npm 11.5.1 or later, and the package's npm settings must name
-# OrbitalFee/mcfo-sdk and release.yml as its trusted publisher.
+# GitHub's OIDC token (id-token: write) and adds provenance by itself. The
+# trust relationship (OrbitalFee/mcfo-sdk, release.yml) allows STAGED
+# publishing only, so CI never makes a version public on its own: a
+# maintainer approves each staged version with 2FA (npm stage approve, or the
+# package page on npmjs.com). Needs npm 11.21 or later for `npm stage`.
 on:
   push:
     tags: ['v*']
@@ -24,8 +27,8 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: npm
-      - name: npm 11.5.1 or later (Trusted Publishing)
-        run: npm install -g npm@^11.5.1 && npm --version
+      - name: npm 11.21 or later (Trusted Publishing, staged publishing)
+        run: npm install -g npm@^11.21.0 && npm --version
       - name: Tag matches package.json version
         run: |
           want="v$(node -p 'require("./package.json").version')"
@@ -35,7 +38,19 @@ jobs:
           fi
       - run: npm ci
       - run: npm test
-      - name: Publish
+      - name: Stage the release (a maintainer approves it with 2FA)
         # Verbose so a refused Trusted Publishing exchange says why in the log
         # (otherwise npm falls back to the placeholder token and prints a 404).
-        run: npm publish --access public --loglevel verbose
+        run: npm stage publish --access public --loglevel verbose
+      - name: How to approve
+        run: |
+          {
+            echo "### Staged $GITHUB_REF_NAME on npm, waiting for approval"
+            echo
+            echo "Approve with 2FA (npm 11.21 or later):"
+            echo
+            echo '```'
+            echo 'npm stage list @orbitalfee/mcfo-sdk'
+            echo 'npm stage approve <stage-id>'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
