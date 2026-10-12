@@ -2,14 +2,17 @@ name: Release
 
 # Publishes to npm when a version tag (v1.2.3) is pushed. The tag must equal
 # package.json "version", or the job fails before anything is published.
-# The npm token lives only in the NPM_TOKEN repository secret.
+# No npm token: npm Trusted Publishing authenticates this workflow through
+# GitHub's OIDC token (id-token: write) and adds provenance by itself.
+# It needs npm 11.5.1 or later, and the package's npm settings must name
+# OrbitalFee/mcfo-sdk and release.yml as its trusted publisher.
 on:
   push:
     tags: ['v*']
 
 permissions:
   contents: read
-  id-token: write   # npm provenance
+  id-token: write   # npm Trusted Publishing (OIDC) and provenance
 
 jobs:
   publish:
@@ -18,9 +21,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: npm
+      - name: npm 11.5.1 or later (Trusted Publishing)
+        run: npm install -g npm@^11.5.1 && npm --version
       - name: Tag matches package.json version
         run: |
           want="v$(node -p 'require("./package.json").version')"
@@ -31,6 +36,4 @@ jobs:
       - run: npm ci
       - run: npm test
       - name: Publish
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
