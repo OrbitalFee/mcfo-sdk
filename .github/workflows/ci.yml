@@ -13,15 +13,37 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  unit:
+    name: unit (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+
+  coverage-and-package:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npm test
-      - name: Package contents
-        run: npm pack --dry-run
+      - name: Coverage (fails below 95% lines and functions, 90% branches)
+        run: npm run test:coverage
+      - name: Package test (pack, install, import by name, type-check a consumer)
+        run: npm run test:package
+      - name: Examples run against the built package
+        run: |
+          node --check examples/quick-fees.mjs
+          node --check examples/dry-run-transaction.mjs
+          node --check examples/dashboard/server.mjs

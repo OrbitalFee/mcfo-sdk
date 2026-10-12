@@ -9,7 +9,7 @@
  *
  * The SDK never handles private keys.
  */
-export { McfoClient, gweiToWei } from "./client.js";
+export { McfoClient, feeParamsFromQuote, gweiToWei } from "./client.js";
 export type { McfoClientOptions } from "./client.js";
 export { sendTransaction, isViemWalletClient } from "./send.js";
 export type {

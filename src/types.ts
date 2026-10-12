@@ -10,6 +10,8 @@ export interface FeeTier {
   unit: "gwei";
   confidence: number; // 0–1
   blocks: number;
+  /** % below the quote's naive reference (naiveFee), when the API sends it. */
+  savingPct?: number;
 }
 
 export interface Quote {
@@ -22,6 +24,14 @@ export interface Quote {
   source: string;
   snapshotAge: number;
   generatedAt?: string;
+  /** Reference fee the tier savings are measured against, in gwei. */
+  naiveFee?: number;
+  /** Plain-words name of that reference, e.g. "pay-to-be-safe (base + p75)". */
+  savingBasis?: string;
+  /** "feehistory" or "feehistory+mempool" (tips capped by the live mempool). */
+  quoteBasis?: string;
+  /** Median tip in the live pending block, in gwei; null when not measured. */
+  mempoolTipP50Gwei?: number | null;
 }
 
 export interface Advice {
@@ -30,6 +40,18 @@ export interface Advice {
   estFutureMaxFee: number; // gwei
   confidence: number;
   generatedAt?: string;
+  /** Whether the advised fee meets the requested targetSavingPct. */
+  targetMet?: boolean;
+  gasLimit?: number;
+  /** Base fee now, in gwei. */
+  currentFee?: number;
+  /** Reference fee the saving is measured against, in gwei. */
+  naiveFee?: number;
+  /** The fee the advice recommends, in gwei. */
+  advisedFee?: number;
+  /** What the saving comes from, e.g. "tip+temporal". */
+  basis?: string;
+  chain?: Chain;
 }
 
 export interface AdvancedQuote {
