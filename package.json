@@ -1,8 +1,25 @@
 {
   "name": "@orbitalfee/mcfo-sdk",
   "version": "0.1.0",
-  "description": "MCFO fee selection for Ethereum transactions — typed /v1 client plus an ethers/viem submission wrapper. Never handles private keys.",
-  "license": "SEE LICENSE IN ../LICENSE.md",
+  "description": "Orbital Fee fee selection for Ethereum transactions: a typed client for the Orbital Fee API plus an ethers/viem submission helper. Never handles private keys.",
+  "license": "MIT",
+  "keywords": [
+    "ethereum",
+    "gas",
+    "fees",
+    "eip-1559",
+    "ethers",
+    "viem",
+    "orbital-fee"
+  ],
+  "homepage": "https://github.com/OrbitalFee/mcfo-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/OrbitalFee/mcfo-sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OrbitalFee/mcfo-sdk.git"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,7 +31,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=18"
@@ -39,5 +57,8 @@
       "optional": true
     }
   },
-  "private": true
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

@@ -1,6 +1,8 @@
 # @orbitalfee/mcfo-sdk
 
-MCFO fee selection for Ethereum transactions (T29).
+Fee selection for Ethereum transactions from [Orbital Fee](https://mcfo.zgos.eu).
+
+The first release covers Ethereum. Bitcoin support is planned.
 
 Two layers, both usable on their own:
 
@@ -9,9 +11,9 @@ Two layers, both usable on their own:
 2. **`sendTransaction()`** — merges those fees into a transaction and hands it
    to *your* ethers `Signer` or viem `WalletClient` for signing and submission.
 
-**The SDK never handles private keys.** Key management and autonomous
-submission are deliberately out of scope (product-spec §1 defers wallet
-integration pending security + legal review; T30 owns the smart tx queue).
+**The SDK never handles private keys.** Signing and submission stay with
+your own wallet client. Key management and autonomous submission are out of
+scope.
 
 ## Install
 
@@ -87,3 +89,7 @@ npm test        # builds, then runs node:test against dist/
 
 No test framework: tests use Node's built-in runner against the compiled
 output, keeping the dependency surface to TypeScript alone.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
