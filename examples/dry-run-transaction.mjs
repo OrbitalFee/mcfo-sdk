@@ -7,7 +7,14 @@
 // `recorder`. The SDK never sees a private key: your wallet signs and sends.
 import { McfoClient, sendTransaction } from "@orbitalfee/mcfo-sdk";
 
-const mcfo = new McfoClient();
+const accessHeaders =
+  process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET
+    ? {
+        "CF-Access-Client-Id": process.env.CF_ACCESS_CLIENT_ID,
+        "CF-Access-Client-Secret": process.env.CF_ACCESS_CLIENT_SECRET,
+      }
+    : undefined;
+const mcfo = new McfoClient({ headers: accessHeaders });
 
 // Same shape as an ethers v6 Signer: sendTransaction(tx) -> { hash }.
 const recorder = {

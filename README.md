@@ -87,6 +87,21 @@ Fees you set explicitly on the transaction always win — the SDK only fills
 gaps. If the API is unavailable the call throws **before** anything is sent,
 so a transaction is never submitted unpriced.
 
+## Behind a login (Cloudflare Access)
+
+The hosted API is behind Cloudflare Access. A program that calls it needs a service token, which the owner issues. Pass its two values as extra headers:
+
+```ts
+const mcfo = new McfoClient({
+  headers: {
+    "CF-Access-Client-Id": process.env.CF_ACCESS_CLIENT_ID!,
+    "CF-Access-Client-Secret": process.env.CF_ACCESS_CLIENT_SECRET!,
+  },
+});
+```
+
+The examples and the live tests read `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` from the environment. The `headers` option never overrides `accept`, `content-type` or `X-API-Key`. Without a token, the login page comes back instead of JSON, and the client raises `McfoError` with the code `http_error`.
+
 ## Errors
 
 Every failure is an `McfoError` with a `code`:

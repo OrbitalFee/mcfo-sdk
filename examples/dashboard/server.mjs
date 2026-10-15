@@ -20,9 +20,17 @@ const GAS_LIMITS = [21_000, 65_000, 150_000]; // transfer, token transfer, swap
 // Profile -> the /v1/quick tier it reads.
 const PROFILES = { saver: "slow", balanced: "normal", priority: "fast" };
 
+const accessHeaders =
+  process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET
+    ? {
+        "CF-Access-Client-Id": process.env.CF_ACCESS_CLIENT_ID,
+        "CF-Access-Client-Secret": process.env.CF_ACCESS_CLIENT_SECRET,
+      }
+    : undefined;
 const mcfo = new McfoClient({
   apiKey: process.env.MCFO_API_KEY,
   baseUrl: process.env.MCFO_BASE_URL,
+  headers: accessHeaders,
 });
 
 /** Last good market snapshot, shared by every gas limit and every tab. */

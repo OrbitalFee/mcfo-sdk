@@ -28,6 +28,13 @@ export interface McfoClientOptions {
   fetch?: typeof globalThis.fetch;
   /** Per-request timeout. Default: 5000ms. */
   timeoutMs?: number;
+  /**
+   * Extra headers sent on every request, for example a Cloudflare Access
+   * service token when the API sits behind a login:
+   * `{ "CF-Access-Client-Id": id, "CF-Access-Client-Secret": secret }`.
+   * They never override accept, content-type or X-API-Key.
+   */
+  headers?: Record<string, string>;
 }
 
 export function gweiToWei(gwei: number): bigint {
@@ -63,12 +70,14 @@ export class McfoClient {
   private readonly apiKey?: string;
   private readonly fetchImpl: typeof globalThis.fetch;
   private readonly timeoutMs: number;
+  private readonly extraHeaders: Record<string, string>;
 
   constructor(options: McfoClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.apiKey = options.apiKey;
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.extraHeaders = { ...(options.headers ?? {}) };
     if (typeof this.fetchImpl !== "function") {
       throw new TypeError("No fetch implementation: pass options.fetch (Node < 18)");
     }
@@ -83,6 +92,7 @@ export class McfoClient {
         ...init,
         signal: controller.signal,
         headers: {
+          ...this.extraHeaders,
           accept: "application/json",
           ...(this.apiKey ? { "X-API-Key": this.apiKey } : {}),
           ...(init.body ? { "content-type": "application/json" } : {}),

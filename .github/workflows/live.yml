@@ -20,8 +20,16 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      # The API sits behind Cloudflare Access (2026-10-15): the service token
+      # lets this job through. Repo secrets; unset = anonymous (will be refused).
       - run: npm run test:live
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
       - name: Examples against the live API
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           node examples/quick-fees.mjs
           node examples/dry-run-transaction.mjs
