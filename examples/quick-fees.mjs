@@ -7,7 +7,14 @@
 // `npm install @orbitalfee/mcfo-sdk`.
 import { McfoClient, McfoError } from "@orbitalfee/mcfo-sdk";
 
-const mcfo = new McfoClient({ apiKey: process.env.MCFO_API_KEY }); // no key = free tier
+const accessHeaders =
+  process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET
+    ? {
+        "CF-Access-Client-Id": process.env.CF_ACCESS_CLIENT_ID,
+        "CF-Access-Client-Secret": process.env.CF_ACCESS_CLIENT_SECRET,
+      }
+    : undefined;
+const mcfo = new McfoClient({ apiKey: process.env.MCFO_API_KEY, headers: accessHeaders }); // no key = free tier
 
 try {
   const quote = await mcfo.getQuote();

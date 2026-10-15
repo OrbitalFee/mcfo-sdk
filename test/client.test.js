@@ -105,6 +105,40 @@ test("apiKey is sent as X-API-Key, omitted when anonymous", async () => {
   assert.equal("X-API-Key" in anon.calls[0].init.headers, false);
 });
 
+test("headers option is sent on every request (Cloudflare Access service token)", async () => {
+  const headers = { "CF-Access-Client-Id": "id.access", "CF-Access-Client-Secret": "s3cret" };
+  const { client, calls } = clientWith(() => ({ body: QUOTE }), { headers, apiKey: "mcfo_k" });
+  await client.getQuote();
+  await client.getQuote();
+  for (const call of calls) {
+    assert.equal(call.init.headers["CF-Access-Client-Id"], "id.access");
+    assert.equal(call.init.headers["CF-Access-Client-Secret"], "s3cret");
+    assert.equal(call.init.headers["X-API-Key"], "mcfo_k");
+  }
+});
+
+test("headers option cannot override accept or X-API-Key", async () => {
+  const { client, calls } = clientWith(() => ({ body: QUOTE }), {
+    apiKey: "mcfo_real",
+    headers: { accept: "text/html", "X-API-Key": "mcfo_spoofed" },
+  });
+  await client.getQuote();
+  assert.equal(calls[0].init.headers.accept, "application/json");
+  assert.equal(calls[0].init.headers["X-API-Key"], "mcfo_real");
+});
+
+test("a Cloudflare Access login page surfaces as a typed error, not a SyntaxError", async () => {
+  // fetch follows the 302 to the login page, which answers 200 with HTML.
+  const loginPage = async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => "text/html" },
+    json: async () => JSON.parse("<html>Sign in · Cloudflare Access</html>"),
+  });
+  const client = new McfoClient({ baseUrl: "https://api.test", fetch: loginPage });
+  await assert.rejects(client.getQuote(), (e) => e instanceof McfoError && e.code === "http_error");
+});
+
 test("getAdvice POSTs the documented body with defaults", async () => {
   const { client, calls } = clientWith(() => ({
     body: { waitMinutes: 10, savePercent: 14.6, estFutureMaxFee: 15.5, confidence: 0.49 },

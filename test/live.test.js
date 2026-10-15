@@ -14,9 +14,17 @@ import { McfoClient, McfoError } from "../dist/index.js";
 
 const live = process.env.MCFO_LIVE === "1";
 const opts = { skip: live ? false : "set MCFO_LIVE=1 to run against the real API" };
+const accessHeaders =
+  process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET
+    ? {
+        "CF-Access-Client-Id": process.env.CF_ACCESS_CLIENT_ID,
+        "CF-Access-Client-Secret": process.env.CF_ACCESS_CLIENT_SECRET,
+      }
+    : undefined;
 const client = new McfoClient({
   baseUrl: process.env.MCFO_BASE_URL,
   apiKey: process.env.MCFO_API_KEY,
+  headers: accessHeaders, // Cloudflare Access service token, when the API needs one
   timeoutMs: 10_000,
 });
 
