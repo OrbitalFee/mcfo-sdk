@@ -113,3 +113,127 @@ export class McfoError extends Error {
     this.param = extra.param;
   }
 }
+
+// ── Bitcoin (product-spec §16, T41) ──────────────────────────────────────────
+//
+// Every figure below is passed through from the API as served. The SDK never
+// computes an odds figure: product-spec §16 records that the histogram the
+// quote walks OVER-STATES inclusion, so the only defensible number is one
+// that was measured against real blocks, with its date and sample attached.
+
+/** `floored`: the whole queue clears below the relay floor, so the tiers collapse to it. */
+export type BtcMarketState = "floored" | "contested" | "flat";
+
+/** Which measured population the reliability figures describe (B58). */
+export type BtcReliabilityBasis = "floored" | "aboveFloor" | "all";
+
+export interface BtcTier {
+  /** The rate served, after the tier's relay floor, in sat/vB. */
+  satVb: number;
+  /** The queue's own rate before the floor, in sat/vB. */
+  rawSatVb: number;
+  /** Virtual block the rate clears in the current queue; null in a floored market (B47). */
+  blocks: number | null;
+  /** Expectation over Poisson arrival; null whenever `blocks` is null. */
+  etaMinutes: number | null;
+  belowRelayFloor: boolean;
+  /** The relay floor applied to this tier (T-B18). */
+  floorSatVb?: number;
+  /** USD for the requested vsize at the stored price; null without a fresh price. */
+  usd: number | null;
+  /** Measured share of quotes at this rate that made the very next block. Absent or null when unmeasured. */
+  landsNextBlockPct?: number | null;
+  landsWithin3BlocksPct?: number | null;
+  landsWithin6BlocksPct?: number | null;
+}
+
+/** Weight at or above a fee rate — a vector by design, never a mempool total (§16). */
+export interface BtcDepthRow {
+  min_sat_vb: number;
+  vsize: number;
+  blocks: number;
+}
+
+/**
+ * The measurement behind the odds: what the served quote achieved against the
+ * next real block, with its window, sample and expiry (B46, B56, B58, B64).
+ */
+export interface BtcReliability {
+  measuredOn: string;
+  window?: string;
+  spanDays?: number;
+  quotesScored: number;
+  blocksScored: number;
+  basis: BtcReliabilityBasis;
+  truth?: string;
+  source?: string;
+  servedLandsNextBlockPct: number;
+  rawLandsNextBlockPct: number;
+  providerLandsNextBlockPct: number;
+  providerLandsWithin3BlocksPct?: number;
+  providerLandsWithin6BlocksPct?: number;
+  /** Median saving against mempool.space `fastestFee`; 0 in a floored market. */
+  medianSavingVsProviderPct: number;
+  horizonBlocks: number;
+  /** "the next real block" — stated in words because it is the trap (§16). */
+  horizon: string;
+  ageDays: number;
+  /** True past the 30-day expiry: the figures describe a market that may have moved. */
+  stale: boolean;
+  sharedByAllTiers: boolean;
+  measuredTier?: string;
+}
+
+export interface BtcQuote {
+  chain: "btc";
+  tiers: { saver: BtcTier; balanced: BtcTier; priority: BtcTier };
+  marketState: BtcMarketState;
+  marginalSatVb: number;
+  providerFastestSatVb?: number | null;
+  overpayRatio?: number | null;
+  depth: BtcDepthRow[];
+  txCount?: number;
+  source: string;
+  vsizeAssumed: number;
+  quoteBasis?: string;
+  providerVblock0FloorSatVb?: number | null;
+  /** The lowest floor served (T-B18). */
+  relayFloorSatVb: number;
+  tierFloorsSatVb?: { saver: number; balanced: number; priority: number };
+  subRelayCaveat?: string | null;
+  /** Absent or null when nothing was measured for this market state. */
+  reliability?: BtcReliability | null;
+  priceUsd?: number | null;
+  priceSource?: string | null;
+  priceTs?: number | string | null;
+  snapshotAge: number;
+  generatedAt: string;
+}
+
+export interface BtcProviderRow {
+  provider: string;
+  next_block_sat_vb: number | null;
+  economy_sat_vb: number | null;
+  note: string | null;
+  vs_mcfo_ratio: number | null;
+  overpay_pct: number | null;
+}
+
+export interface BtcProviders {
+  chain: "btc";
+  marginalSatVb: number | null;
+  /** False when mempool.space is down: the other estimators are still listed. */
+  queueAvailable: boolean;
+  providers: BtcProviderRow[];
+  snapshotAge: number;
+  generatedAt: string;
+}
+
+export interface BtcHistoryPoint {
+  /** Epoch seconds. */
+  ts: number;
+  marginalSatVb: number;
+  providerFastestSatVb: number | null;
+  providerEconomySatVb: number | null;
+  overpayRatio: number | null;
+}

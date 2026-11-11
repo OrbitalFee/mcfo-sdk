@@ -1,10 +1,12 @@
 {
   "name": "@orbitalfee/mcfo-sdk",
-  "version": "0.2.0",
-  "description": "Orbital Fee fee selection for Ethereum transactions: a typed client for the Orbital Fee API plus an ethers/viem submission helper. Never handles private keys.",
+  "version": "0.3.0",
+  "description": "Orbital Fee fee selection for Ethereum and Bitcoin transactions: a typed client for the Orbital Fee API (Ethereum tiers, advice and confidence pricing; Bitcoin sat/vB tiers with measured next-block odds) plus an ethers/viem submission helper. Never handles private keys.",
   "license": "MIT",
   "keywords": [
     "ethereum",
+    "bitcoin",
+    "sat-vb",
     "gas",
     "fees",
     "eip-1559",
@@ -40,8 +42,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test test/*.test.js",
-    "test:unit": "npm run build && node --test test/client.test.js test/send.test.js test/contract.test.js",
-    "test:coverage": "npm run build && node --test --experimental-test-coverage --test-coverage-include='dist/**' --test-coverage-lines=95 --test-coverage-branches=90 --test-coverage-functions=95 test/client.test.js test/send.test.js test/contract.test.js",
+    "test:unit": "npm run build && node --test test/client.test.js test/send.test.js test/contract.test.js test/btc.test.js",
+    "test:coverage": "npm run build && node --test --experimental-test-coverage --test-coverage-include='dist/**' --test-coverage-lines=95 --test-coverage-branches=90 --test-coverage-functions=95 test/client.test.js test/send.test.js test/contract.test.js test/btc.test.js",
     "test:package": "npm run build && node --test test/package.test.js",
     "test:live": "npm run build && MCFO_LIVE=1 node --test test/live.test.js",
     "prepublishOnly": "npm run build"
