@@ -65,13 +65,17 @@ test("a TypeScript consumer type-checks against the shipped declarations", () =>
   writeFileSync(
     join(dir, "consumer.ts"),
     `import { McfoClient, McfoError, sendTransaction } from "@orbitalfee/mcfo-sdk";
-import type { FeeParams, FeeProfile, Quote, Advice } from "@orbitalfee/mcfo-sdk";
+import type { FeeParams, FeeProfile, Quote, Advice, BtcQuote, BtcReliability } from "@orbitalfee/mcfo-sdk";
 
 const client = new McfoClient({ apiKey: "mcfo_example", timeoutMs: 3000 });
 const profile: FeeProfile = "saver";
 async function main(): Promise<bigint> {
   const fees: FeeParams = await client.getFeeParams({ profile });
   const quote: Quote = await client.getQuote();
+  const btc: BtcQuote = await client.btcQuick({ vsize: 140 });
+  const rel: BtcReliability | null | undefined = btc.reliability;
+  const odds: number | null | undefined = btc.tiers.priority.landsNextBlockPct;
+  if (rel && !rel.stale && odds != null) console.log(odds, rel.basis);
   const advice: Advice = await client.getAdvice({ gasLimit: 150000 });
   const saving: number | undefined = quote.slow.savingPct;
   const advised: number | undefined = advice.advisedFee;

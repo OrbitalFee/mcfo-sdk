@@ -1,6 +1,9 @@
 import {
   Advice,
   AdvancedQuote,
+  BtcHistoryPoint,
+  BtcProviders,
+  BtcQuote,
   Chain,
   FeeParams,
   FeeProfile,
@@ -142,7 +145,9 @@ export class McfoClient {
           retryAfterSeconds: retryAfter,
         });
       case 503:
-        throw new McfoError("feed_stale", "Fee feed is stale; retry shortly", {
+        // The body names which feed: feed_stale, feed_unavailable or
+        // btc_history_unavailable (§16). One code, so retry logic stays one branch.
+        throw new McfoError("feed_stale", `Fee feed is stale; retry shortly (${error})`, {
           status: 503,
           retryAfterSeconds: retryAfter,
         });
@@ -180,6 +185,40 @@ export class McfoClient {
       blocks: String(blocks),
     });
     return this.request<AdvancedQuote>(`/v1/advanced?${qs}`);
+  }
+
+  /**
+   * GET /v1/btc/quick — Saver/Balanced/Priority in sat/vB with the measured
+   * odds of the next block (product-spec §16, T41).
+   *
+   * Odds are served, never computed here: `reliability` carries the
+   * measurement's date, window and sample, and `reliability.stale` is true
+   * once it has expired. In a floored market the tiers collapse to the relay
+   * floor and `blocks` is null (B47).
+   */
+  btcQuick(params: { vsize?: number; btcUsd?: number; allowSubRelay?: boolean } = {}): Promise<BtcQuote> {
+    const qs = new URLSearchParams();
+    if (params.vsize !== undefined) qs.set("vsize", String(params.vsize));
+    if (params.btcUsd !== undefined) qs.set("btc_usd", String(params.btcUsd));
+    if (params.allowSubRelay) qs.set("allow_sub_relay", "true");
+    const q = qs.toString();
+    return this.request<BtcQuote>(`/v1/btc/quick${q ? `?${q}` : ""}`);
+  }
+
+  /** GET /v1/btc/providers — every public estimator beside the served rate. */
+  btcProviders(): Promise<BtcProviders> {
+    return this.request<BtcProviders>("/v1/btc/providers");
+  }
+
+  /**
+   * GET /v1/btc/history — the recorded series, oldest first, `ts` in epoch
+   * seconds. Default window a day (1440); maximum a week (10080).
+   * A read failure is a 503 `btc_history_unavailable` (code feed_stale),
+   * never an empty list; an empty window is `[]`.
+   */
+  btcHistory(params: { minutes?: number } = {}): Promise<BtcHistoryPoint[]> {
+    const { minutes = 1440 } = params;
+    return this.request<BtcHistoryPoint[]>(`/v1/btc/history?minutes=${encodeURIComponent(String(minutes))}`);
   }
 
   /**

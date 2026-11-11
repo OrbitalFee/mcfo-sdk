@@ -1,0 +1,111 @@
+{
+ "chain": "btc",
+ "tiers": {
+  "priority": {
+   "satVb": 20.0,
+   "rawSatVb": 20.0,
+   "blocks": 1,
+   "etaMinutes": 10,
+   "belowRelayFloor": false,
+   "floorSatVb": 1.0,
+   "usd": 2.0658,
+   "landsNextBlockPct": 14.4
+  },
+  "balanced": {
+   "satVb": 10.0,
+   "rawSatVb": 10.0,
+   "blocks": 2,
+   "etaMinutes": 20,
+   "belowRelayFloor": false,
+   "floorSatVb": 0.4,
+   "usd": 1.0329
+  },
+  "saver": {
+   "satVb": 3.0,
+   "rawSatVb": 3.0,
+   "blocks": 4,
+   "etaMinutes": 40,
+   "belowRelayFloor": false,
+   "floorSatVb": 0.4,
+   "usd": 0.3099
+  }
+ },
+ "marketState": "contested",
+ "marginalSatVb": 20.0,
+ "providerFastestSatVb": 4.0,
+ "overpayRatio": 0.2,
+ "depth": [
+  {
+   "min_sat_vb": 0.1,
+   "vsize": 5000000,
+   "blocks": 5.0
+  },
+  {
+   "min_sat_vb": 0.5,
+   "vsize": 5000000,
+   "blocks": 5.0
+  },
+  {
+   "min_sat_vb": 1.0,
+   "vsize": 5000000,
+   "blocks": 5.0
+  },
+  {
+   "min_sat_vb": 2.0,
+   "vsize": 4000000,
+   "blocks": 4.0
+  },
+  {
+   "min_sat_vb": 5.0,
+   "vsize": 3000000,
+   "blocks": 3.0
+  },
+  {
+   "min_sat_vb": 10.0,
+   "vsize": 2000000,
+   "blocks": 2.0
+  },
+  {
+   "min_sat_vb": 50.0,
+   "vsize": 0,
+   "blocks": 0.0
+  }
+ ],
+ "txCount": 48213,
+ "source": "mempool.space",
+ "vsizeAssumed": 140,
+ "quoteBasis": "mempool-queue",
+ "providerVblock0FloorSatVb": null,
+ "relayFloorSatVb": 0.4,
+ "tierFloorsSatVb": {
+  "priority": 1.0,
+  "balanced": 0.4,
+  "saver": 0.4
+ },
+ "subRelayCaveat": null,
+ "reliability": {
+  "measuredOn": "2026-10-12",
+  "window": "2026-10-04T18:45Z/2026-10-12T05:19Z",
+  "truth": "fresh package floors (btc_blocks, T-B16)",
+  "horizonBlocks": 1,
+  "horizon": "the next real block",
+  "spanDays": 7.4,
+  "measuredTier": "priority",
+  "source": "docs/technical/btc-floor-rescore.md",
+  "quotesScored": 2924,
+  "blocksScored": 364,
+  "servedLandsNextBlockPct": 14.4,
+  "rawLandsNextBlockPct": 14.4,
+  "providerLandsNextBlockPct": 91.6,
+  "medianSavingVsProviderPct": 50.0,
+  "basis": "aboveFloor",
+  "ageDays": 30,
+  "stale": false,
+  "sharedByAllTiers": false
+ },
+ "priceUsd": 73778.0,
+ "priceSource": "coingecko",
+ "priceTs": 1794379217,
+ "snapshotAge": 7,
+ "generatedAt": "2026-11-11T06:53:30Z"
+}

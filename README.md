@@ -5,14 +5,14 @@
 [![npm](https://img.shields.io/npm/v/@orbitalfee/mcfo-sdk)](https://www.npmjs.com/package/@orbitalfee/mcfo-sdk)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Fee selection for Ethereum transactions from [Orbital Fee](https://mcfo.zgos.eu).
-
-The first release covers Ethereum. Bitcoin support is planned.
+Fee selection for Ethereum and Bitcoin transactions from [Orbital Fee](https://mcfo.zgos.eu).
 
 Two layers, both usable on their own:
 
 1. **`McfoClient`** — typed access to `/v1/quick`, `/v1/advice/save` and
-   `/v1/advanced`, plus `getFeeParams()` which returns EIP-1559 values in wei.
+   `/v1/advanced`, plus `getFeeParams()` which returns EIP-1559 values in wei;
+   and for Bitcoin, `btcQuick()`, `btcProviders()` and `btcHistory()` with the
+   measured next-block odds passed through as the API serves them.
 2. **`sendTransaction()`** — merges those fees into a transaction and hands it
    to *your* ethers `Signer` or viem `WalletClient` for signing and submission.
 
@@ -70,6 +70,49 @@ For confidence-targeted pricing (`/v1/advanced`), pass `confidence` and/or
 const fees = await mcfo.getFeeParams({ confidence: 0.95, blocks: 2 });
 ```
 
+## Bitcoin
+
+```ts
+const q = await mcfo.btcQuick({ vsize: 140 }); // vsize of your transaction, default 140
+
+q.marketState;             // "floored" | "contested" | "flat"
+q.tiers.priority.satVb;    // the rate to pay, after the tier's relay floor
+q.tiers.priority.usd;      // for your vsize at the stored price; null without a fresh price
+q.tiers.priority.landsNextBlockPct;      // measured share that made the very next block
+q.tiers.priority.landsWithin6BlocksPct;  // and within six blocks (about an hour)
+q.reliability;             // the measurement behind those odds (see below)
+```
+
+The odds are **measured, never computed by the SDK**. `reliability` carries the
+measurement they come from: `measuredOn`, `window`, `quotesScored`,
+`blocksScored`, `basis` (`floored`, `aboveFloor` or `all` — the population that
+matches the current market state) and `stale`, which turns true thirty days
+after the measurement. Read `stale` before showing a percentage: an expired
+measurement is still served, so you can judge it, but it describes a market
+that may have moved. A tier without a measured figure has no
+`landsNextBlockPct` at all; the SDK never fills one in.
+
+In a **floored** market the whole queue clears below the relay floor, every
+tier is its floor (production: Priority 1 sat/vB, Balanced and Saver 0.4) and
+`blocks` is `null`, because three prices at the floor cannot carry three
+different block counts. `rawSatVb` keeps the queue's own rate beside the
+floored one. In a **contested** market the tiers differ, each carries the
+virtual block it clears in and only the measured tier carries odds.
+
+```ts
+const providers = await mcfo.btcProviders(); // mempool.space, Blockstream, blockchain.com beside our rate
+providers.queueAvailable;                    // false during a mempool.space outage; the other rows stay
+
+const day = await mcfo.btcHistory();              // last 1440 minutes, oldest first, ts in epoch seconds
+const week = await mcfo.btcHistory({ minutes: 10080 });
+```
+
+`btcHistory()` returns `[]` only for a window with no rows. A read failure is a
+503 (`McfoError` code `feed_stale`, the message names
+`btc_history_unavailable`), never an empty list, so a broken read cannot be
+drawn as a flat line at zero. `depth` on the quote is weight at or above each
+rate — a vector by design; a mempool total is not served.
+
 ## With submission
 
 ```ts
@@ -108,7 +151,7 @@ Every failure is an `McfoError` with a `code`:
 
 | code | meaning |
 |---|---|
-| `feed_stale` | 503 — collector feed is stale; `retryAfterSeconds` is set |
+| `feed_stale` | 503 — a feed is stale or a read failed (`feed_stale`, `feed_unavailable`, `btc_history_unavailable` in the message); `retryAfterSeconds` is set |
 | `rate_limited` | 429 — tier limit hit; `retryAfterSeconds` from `Retry-After` |
 | `invalid_api_key` | 401 — key unknown or revoked |
 | `invalid_param` | 422 — `param` names the offending field |
